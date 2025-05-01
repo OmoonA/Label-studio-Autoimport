@@ -1,11 +1,8 @@
-/apitest.py
-/api_tasks_dump.json
-/auto.py
-/gogo.py
-/importtest.py
-/json_inputs
-/Label-studio Autoimport.zip
-/LabelStudioAutoimport
-/LabelStudioAutoimport.zip
-/lastlast
-/lastlastlast.txt
+ig/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+.vscode/
