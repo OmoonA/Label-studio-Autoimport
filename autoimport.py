@@ -18,7 +18,7 @@ for line in lines:
         key, value = line.strip().split("=", 1)
         config[key.strip()] = value.strip()
 
-BASE_URL = config.get("BASE_URL")
+BASE_URL = config.get("BASE_URL")       #config내용 
 REFRESH_TOKEN = config.get("TOKEN")
 PROJECT_ID = config.get("PROJECT_ID")
 INPUT_FOLDER = "./json_inputs"
@@ -31,6 +31,8 @@ if not BASE_URL or not REFRESH_TOKEN or not PROJECT_ID:
 PROJECT_ID = int(PROJECT_ID)
 
 # === Access Token 발급 ===
+#주의할점 Label studio의 개인토큰은 API토큰으로 바로 쓸수없는 리프레시 토큰이었음
+#API용 Access Token을 발급받는 과정이 필요
 resp = requests.post(
     f"{BASE_URL}/api/token/refresh",
     headers={"Content-Type": "application/json"},
@@ -69,6 +71,8 @@ for suffix, task_id in suffix_map.items():
     print(f"  suffix: {suffix}, task_id: {task_id}")
 
 # === JSON 파일 순회하며 annotation 추가 ===
+#import로 처리하면 미리업로드된 영상과 json파일이 분리되는사항을 해결하지 못했음
+#두가지가합병되도록 json을 import가 아닌 annotation으로 추가하도록 변경
 for filename in os.listdir(INPUT_FOLDER):
     if filename.endswith(".json"):
         input_path = os.path.join(INPUT_FOLDER, filename)
