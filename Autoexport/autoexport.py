@@ -1,47 +1,69 @@
 import requests
-import json
 import os
+import datetime
 
-CONFIG_FILE = os.path.join(os.path.dirname(__file__), 'export_config.txt')
+
+# 현재 py 파일의 폴더 경로 구하기
+script_dir = os.path.dirname(os.path.abspath(__file__))
+config_path = os.path.join(script_dir, 'export_config.txt')
 
 # config 읽기
 config = {}
-with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+with open(config_path, 'r', encoding='utf-8') as f:
     for line in f:
-        if '=' in line:
+        if line.strip() and not line.startswith('#'):
             key, value = line.strip().split('=', 1)
             config[key.strip()] = value.strip()
 
 BASE_URL = config.get('BASE_URL')
-TOKEN = config.get('TOKEN')
+REFRESH_TOKEN = config.get('REFRESH_TOKEN')
 PROJECT_ID = config.get('PROJECT_ID')
-TASK_IDS = config.get('TASK_IDS', '').split(',')
 
-print(f"🔑 TOKEN: {TOKEN[:4]}...(앞 4자리만 표시)")
-print(f"📝 가져올 Task IDs: {TASK_IDS}")
+# === 필수 값 체크 ===
+if not BASE_URL or not REFRESH_TOKEN or not PROJECT_ID:
+    print("❌ BASE_URL, REFRESH_TOKEN, PROJECT_ID는 필수입니다!")
+    exit()
 
-# API 요청 헤더 (★ PAT 방식)
+# === Access Token 발급 ===
+resp = requests.post(
+    f"{BASE_URL}/api/token/refresh",
+    headers={"Content-Type": "application/json"},
+    json={"refresh": REFRESH_TOKEN}
+)
+if resp.status_code != 200:
+    print("❌ Access Token 발급 실패:", resp.text)
+    exit()
+access_token = resp.json()["access"]
+print("✅ Access Token 발급 성공")
+
 headers = {
-    "Authorization": f"Token {TOKEN}",
+    "Authorization": f"Bearer {access_token}",
     "Content-Type": "application/json"
 }
 
-# output 폴더 만들기
-OUTPUT_FOLDER = './exports'
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+# === 프로젝트 전체 export 요청 ===
+export_url = f"{BASE_URL}/api/projects/{PROJECT_ID}/export"
+print("📡 전체 export 데이터 다운로드 중...")
 
-# 각 task export
-for task_id in TASK_IDS:
-    task_id = task_id.strip()
-    url = f"{BASE_URL}/api/projects/{PROJECT_ID}/tasks/{task_id}"
-    response = requests.get(url, headers=headers)
+resp = requests.get(export_url, headers=headers)
+if resp.status_code == 200:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # 저장 폴더 경로
+    export_folder = os.path.join(script_dir, "exported_tasks")
 
-    if response.status_code == 200:
-        output_path = os.path.join(OUTPUT_FOLDER, f"task_{task_id}.json")
-        with open(output_path, 'w', encoding='utf-8') as f:
-            json.dump(response.json(), f, ensure_ascii=False, indent=4)
-        print(f"✅ Exported Task {task_id} → {output_path}")
-    else:
-        print(f"❌ Failed to export Task {task_id}: {response.status_code} {response.text}")
+    # 폴더 없으면 생성
+    os.makedirs(export_folder, exist_ok=True)
 
-print("🎉 모든 export 완료!")
+    # 오늘 날짜 구하기 (YYYY-MM-DD 형식)
+    today = datetime.datetime.now().strftime("%Y-%m-%d")
+
+    # 저장 파일 경로 만들기
+    output_path = os.path.join(export_folder, f"오다혜_{today}.json")
+
+    with open(output_path, "w", encoding='utf-8') as f:
+        f.write(resp.text)
+   
+    print("✅ 프로젝트 전체 export 완료! → project_export.json 저장됨")
+    print(f"✅ 저장 완료: {output_path}")
+else:
+    print(f"❌ Export 요청 실패: {resp.status_code} {resp.text}")
